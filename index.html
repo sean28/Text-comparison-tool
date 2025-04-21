@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>文本差异对比工具</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/4.0.2/diff.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .input-container {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    textarea {
+      flex: 1;
+      height: 300px;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      border-color: #4CAF50;
+      outline: none;
+    }
+
+    .diff-container {
+      display: flex;
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .diff-column {
+      flex: 1;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .line {
+      display: flex;
+      margin: 4px 0;
+      font-family: 'Courier New', monospace;
+    }
+
+    .line-number {
+      width: 50px;
+      padding-right: 15px;
+      color: #666;
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-content {
+      flex: 1;
+      padding-left: 10px;
+      white-space: pre-wrap;
+    }
+
+    .diff-del {
+      background: #ffebee;
+      color: #b71c1c;
+      border-left: 3px solid #ff5252;
+    }
+
+    .diff-ins {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-left: 3px solid #4caf50;
+    }
+
+    .diff-char {
+      font-weight: 700;
+      background-color: rgba(255,235,59,0.3);
+      padding: 1px 2px;
+      border-radius: 2px;
+    }
+
+    .instructions {
+      margin-top: 40px;
+      padding: 25px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      border-left: 4px solid #4CAF50;
+    }
+
+    .instructions h3 {
+      margin-top: 0;
+      color: #2e7d32;
+    }
+
+    .instructions ul {
+      padding-left: 20px;
+    }
+
+    .instructions li {
+      margin: 10px 0;
+    }
+
+    .empty-placeholder {
+      color: #999;
+      text-align: center;
+      padding: 20px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0;
+      font-size: 15px;
+    }
+
+    .stats {
+      margin-top: 20px;
+    }
+
+    .stats p {
+      margin: 5px 0;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 文本差异对比工具</h1>
+
+  <label style="display:block; margin:10px 0; font-size:20px; font-weight:regular;">
+    <input type="checkbox" id="onlyDiff" onchange="generateDiff()"> 仅显示不同的行
+  </label>
+
+  <div class="input-container">
+    <textarea id="text1" placeholder="在此粘贴原始文本..." oninput="updateStats()"></textarea>
+    <textarea id="text2" placeholder="在此粘贴修改后文本..." oninput="updateStats()"></textarea>
+  </div>
+
+  <div class="stats">
+    <p>原始文本字数: <span id="wordCount1">0</span> 字 | 行数: <span id="lineCount1">0</span> 行</p>
+    <p>修改后文本字数: <span id="wordCount2">0</span> 字 | 行数: <span id="lineCount2">0</span> 行</p>
+  </div>
+
+  <div class="diff-container">
+    <div class="diff-column" id="left-panel">
+      <h2>原始文本</h2>
+      <div class="empty-placeholder">内容将在此处显示</div>
+    </div>
+    <div class="diff-column" id="right-panel">
+      <h2>修改后文本</h2>
+      <div class="empty-placeholder">内容将在此处显示</div>
+    </div>
+  </div>
+
+  <div class="instructions">
+    <h3>📘 使用说明</h3>
+    <ul>
+      <li>左右输入框分别粘贴需要对比的文本内容</li>
+      <li>自动实时对比（300ms延迟），无需手动操作</li>
+      <li>红色背景表示删除内容，绿色背景表示新增内容</li>
+      <li><strong>加粗文字</strong>显示行内具体修改的字符</li>
+      <li>行号独立显示，方便定位修改位置</li>
+      <li>勾选“仅显示不同的行”以隐藏一致行</li>
+      <li>空行会显示为空白行号保持对齐</li>
+    </ul>
+  </div>
+
+  <script>
+    const escapeHtml = text => text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+    function createCharDiff(oldStr, newStr) {
+      const diffs = Diff.diffChars(oldStr, newStr);
+      const left = diffs.map(d =>
+        d.removed ? `<strong class="diff-char">${escapeHtml(d.value)}</strong>` :
+        !d.added ? escapeHtml(d.value) : ''
+      ).join('');
+      const right = diffs.map(d =>
+        d.added ? `<strong class="diff-char">${escapeHtml(d.value)}</strong>` :
+        !d.removed ? escapeHtml(d.value) : ''
+      ).join('');
+      return { left, right };
+    }
+
+    function generateDiff() {
+      const text1 = document.getElementById('text1').value;
+      const text2 = document.getElementById('text2').value;
+      const onlyShowDiffs = document.getElementById('onlyDiff').checked;
+      const leftPanel = document.getElementById('left-panel');
+      const rightPanel = document.getElementById('right-panel');
+
+      leftPanel.innerHTML = '<h2>原始文本</h2>';
+      rightPanel.innerHTML = '<h2>修改后文本</h2>';
+
+      if (!text1 && !text2) {
+        leftPanel.innerHTML += '<div class="empty-placeholder">请输入原始文本</div>';
+        rightPanel.innerHTML += '<div class="empty-placeholder">请输入修改后文本</div>';
+        return;
+      }
+
+      const lines1 = text1.split('\n');
+      const lines2 = text2.split('\n');
+      const diffs = Diff.diffArrays(lines1, lines2);
+
+      let leftLine = 1, rightLine = 1;
+      const leftContent = [], rightContent = [];
+      let index = 0;
+
+      while (index < diffs.length) {
+        const part = diffs[index];
+
+        if (part.removed && diffs[index + 1]?.added) {
+          const oldLines = part.value;
+          const newLines = diffs[index + 1].value;
+          const maxLen = Math.max(oldLines.length, newLines.length);
+
+          for (let i = 0; i < maxLen; i++) {
+            const oldLine = oldLines[i] || '';
+            const newLine = newLines[i] || '';
+            const { left, right } = createCharDiff(oldLine, newLine);
+
+            leftContent.push(`
+              <div class="line diff-del">
+                <span class="line-number">${leftLine++}</span>
+                <span class="line-content">${left || ' '}</span>
+              </div>
+            `);
+            rightContent.push(`
+              <div class="line diff-ins">
+                <span class="line-number">${rightLine++}</span>
+                <span class="line-content">${right || ' '}</span>
+              </div>
+            `);
+          }
+          index += 2;
+        } else if (part.added) {
+          part.value.forEach(line => {
+            rightContent.push(`
+              <div class="line diff-ins">
+                <span class="line-number">${rightLine++}</span>
+                <span class="line-content">${escapeHtml(line)}</span>
+              </div>
+            `);
+          });
+          index++;
+        } else if (part.removed) {
+          part.value.forEach(line => {
+            leftContent.push(`
+              <div class="line diff-del">
+                <span class="line-number">${leftLine++}</span>
+                <span class="line-content">${escapeHtml(line)}</span>
+              </div>
+            `);
+          });
+          index++;
+        } else {
+          part.value.forEach(line => {
+            if (!onlyShowDiffs) {
+              leftContent.push(`
+                <div class="line">
+                  <span class="line-number">${leftLine++}</span>
+                  <span class="line-content">${escapeHtml(line)}</span>
+                </div>
+              `);
+              rightContent.push(`
+                <div class="line">
+                  <span class="line-number">${rightLine++}</span>
+                  <span class="line-content">${escapeHtml(line)}</span>
+                </div>
+              `);
+            } else {
+              leftLine++;
+              rightLine++;
+            }
+          });
+          index++;
+        }
+      }
+
+      leftPanel.innerHTML += leftContent.length ? leftContent.join('') : '<div class="empty-placeholder">内容无变化</div>';
+      rightPanel.innerHTML += rightContent.length ? rightContent.join('') : '<div class="empty-placeholder">内容无变化</div>';
+    }
+
+    function updateStats() {
+      const text1 = document.getElementById('text1').value;
+      const text2 = document.getElementById('text2').value;
+
+      const wordCount1 = text1.split(/\s+/).filter(Boolean).length;
+      const lineCount1 = text1.split('\n').length;
+      const wordCount2 = text2.split(/\s+/).filter(Boolean).length;
+      const lineCount2 = text2.split('\n').length;
+
+      document.getElementById('wordCount1').textContent = wordCount1;
+      document.getElementById('lineCount1').textContent = lineCount1;
+      document.getElementById('wordCount2').textContent = wordCount2;
+      document.getElementById('lineCount2').textContent = lineCount2;
+
+      generateDiff();
+    }
+
+    let timeout;
+    function scheduleUpdate() {
+      clearTimeout(timeout);
+      timeout = setTimeout(generateDiff, 300);
+    }
+
+    document.getElementById('text1').addEventListener('input', scheduleUpdate);
+    document.getElementById('text2').addEventListener('input', scheduleUpdate);
+    window.addEventListener('load', generateDiff);
+  </script>
+</body>
+</html>
