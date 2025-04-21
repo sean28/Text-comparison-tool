@@ -125,12 +125,12 @@
 
   <div class="input-container">
     <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-      <input type="file" id="file1" accept=".txt">
+      <input type="file" id="file1" accept=".txt,.md,.pdb,.html,.htm,.py,.pl,.csv,.log,.json,.xml,.tsv,.ini,.conf,.yaml,.yml,.bat,.sh,.cpp,.c,.h,.js,.css">
       <textarea id="text1" placeholder="在此粘贴原始文本..." oninput="updateStats()"></textarea>
       <p style="margin: 5px 0; font-size: 16px; color: #333;">原始文本字数: <span id="wordCount1">0</span> 字 | 行数: <span id="lineCount1">0</span> 行</p>
     </div>
     <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-      <input type="file" id="file2" accept=".txt">
+      <input type="file" id="file2" accept=".txt,.md,.pdb,.html,.htm,.py,.pl,.csv,.log,.json,.xml,.tsv,.ini,.conf,.yaml,.yml,.bat,.sh,.cpp,.c,.h,.js,.css">
       <textarea id="text2" placeholder="在此粘贴修改后文本..." oninput="updateStats()"></textarea>
       <p style="margin: 5px 0; font-size: 16px; color: #333;">修改后文本字数: <span id="wordCount2">0</span> 字 | 行数: <span id="lineCount2">0</span> 行</p>
     </div>
