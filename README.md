@@ -1,1 +1,0 @@
-# Text-comparison-tool
